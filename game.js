@@ -13,6 +13,7 @@ const SPACING = BUBBLE_RADIUS * 2;
 const SHOOTER_X = canvas.width / 2;
 const SHOOTER_Y = canvas.height - 38;
 const COLORS = ['#ff6363', '#ffd93d', '#4ecdc4', '#5c7cfa', '#b197fc', '#ff9f1c'];
+const AIM_SPEED = 0.08; // Speed of arrow key aiming
 
 let board = [];
 let currentColor = null;
@@ -22,6 +23,15 @@ let aim = -Math.PI / 2;
 let score = 0;
 let best = Number(localStorage.getItem('bubbleShooterBest') || 0);
 let gameOver = false;
+
+// Keyboard state tracking
+const keys = {
+  ArrowUp: false,
+  ArrowDown: false,
+  ArrowLeft: false,
+  ArrowRight: false,
+  Space: false
+};
 
 function randomColor() {
   return COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -236,6 +246,52 @@ function updateAimFromPointer(x, y) {
   }
 }
 
+function updateAimFromKeys() {
+  let aimChanged = false;
+
+  // Arrow Up - rotate aim upward (decrease angle)
+  if (keys.ArrowUp) {
+    aim -= AIM_SPEED;
+    aimChanged = true;
+  }
+
+  // Arrow Down - rotate aim downward (increase angle)
+  if (keys.ArrowDown) {
+    aim += AIM_SPEED;
+    aimChanged = true;
+  }
+
+  // Arrow Left - rotate aim to the left
+  if (keys.ArrowLeft) {
+    aim -= AIM_SPEED * 1.5;
+    aimChanged = true;
+  }
+
+  // Arrow Right - rotate aim to the right
+  if (keys.ArrowRight) {
+    aim += AIM_SPEED * 1.5;
+    aimChanged = true;
+  }
+
+  // Clamp aim to valid range
+  if (aimChanged) {
+    if (aim < -Math.PI + 0.35) {
+      aim = -Math.PI + 0.35;
+    }
+    if (aim > -0.35) {
+      aim = -0.35;
+    }
+  }
+
+  // Space to fire
+  if (keys.Space) {
+    if (!gameOver) {
+      fireBubble();
+    }
+    keys.Space = false; // Reset after firing
+  }
+}
+
 function drawBubble(x, y, color) {
   ctx.beginPath();
   ctx.arc(x, y, BUBBLE_RADIUS, 0, Math.PI * 2);
@@ -284,6 +340,14 @@ function drawShooter() {
   ctx.fillText('NEXT', canvas.width - 110, 36);
 }
 
+function drawControls() {
+  ctx.font = 'bold 12px Arial';
+  ctx.fillStyle = '#a6b6d4';
+  ctx.textAlign = 'left';
+  ctx.fillText('Controls: ← → ↑ ↓ Aim | Space Fire | Click Restart', 10, canvas.height - 8);
+  ctx.textAlign = 'start';
+}
+
 function drawGameOver() {
   if (!gameOver) {
     return;
@@ -317,6 +381,9 @@ function drawBackground() {
 }
 
 function updateGame() {
+  // Update aim from keyboard input
+  updateAimFromKeys();
+
   if (activeBubble) {
     activeBubble.x += activeBubble.vx;
     activeBubble.y += activeBubble.vy;
@@ -362,6 +429,7 @@ function render() {
   }
 
   drawShooter();
+  drawControls();
   drawGameOver();
 }
 
@@ -370,6 +438,24 @@ function loop() {
   render();
   requestAnimationFrame(loop);
 }
+
+// Keyboard event listeners
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    keys[event.key] = true;
+  }
+  if (event.key === ' ') {
+    event.preventDefault();
+    keys.Space = true;
+  }
+});
+
+document.addEventListener('keyup', (event) => {
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    keys[event.key] = false;
+  }
+});
 
 canvas.addEventListener('pointermove', (event) => {
   const rect = canvas.getBoundingClientRect();
